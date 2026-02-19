@@ -57,8 +57,11 @@ function initializeClient() {
                 '--disable-accelerated-2d-canvas', 
                 '--no-first-run', 
                 '--no-zygote',
-                '--single-process', 
-                '--disable-gpu'
+                '--disable-gpu',
+                // --- PENGHEMAT MEMORI UNTUK RENDER (MENCEGAH STUCK LOGGING IN) ---
+                '--disable-extensions',
+                '--disable-software-rasterizer',
+                '--js-flags="--max-old-space-size=400"' // Membatasi RAM V8 Engine maks ~400MB
             ],
             // Jika Render lambat menjalankan Chromium, tambahkan timeout
             handleSIGINT: false,
