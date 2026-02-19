@@ -26,7 +26,7 @@ let sessionConfig = {
 };
 
 let client = null; 
-let isResetting = false; // Flag untuk mencegah tabrakan proses reset
+let isResetting = false; 
 
 /**
  * Inisialisasi Engine WhatsApp Web
@@ -42,12 +42,16 @@ function initializeClient() {
         authStrategy: new LocalAuth({ clientId: SESSION_ID }),
         puppeteer: { 
             headless: true,
-            // Argumen optimasi agar browser berjalan ringan dan stabil di VPS/PC
+            // ARGUMEN WAJIB UNTUK DEPLOY DI RENDER/LINUX (Mencegah Crash)
             args: [
-                '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote',
-                '--single-process', '--disable-gpu', '--disable-extensions', 
-                '--mute-audio', '--no-default-browser-check'
+                '--no-sandbox', 
+                '--disable-setuid-sandbox', 
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas', 
+                '--no-first-run', 
+                '--no-zygote',
+                '--single-process', 
+                '--disable-gpu'
             ]
         }
     });
@@ -63,7 +67,6 @@ function initializeClient() {
         });
     };
 
-    // Event: QR Code Muncul
     client.on('qr', (qr) => {
         qrcode.toDataURL(qr, (err, url) => {
             emitToAuthenticated('qr', url);
@@ -72,34 +75,29 @@ function initializeClient() {
         });
     });
 
-    // Event: WhatsApp Siap Digunakan
     client.on('ready', () => {
         emitToAuthenticated('log', `✅ WhatsApp Connected! Ready to blast.`);
         emitToAuthenticated('status', 'ready');
     });
 
-    // Event: Berhasil Authenticated (Scan Berhasil)
     client.on('authenticated', () => {
-        emitToAuthenticated('log', 'System: Login berhasil, memproses dashboard...');
         emitToAuthenticated('status', 'authenticated');
     });
 
-    // Event: Login Gagal
     client.on('auth_failure', () => {
-        emitToAuthenticated('log', '❌ Login Gagal. Mencoba restart engine...');
-        resetClient(null, false);
+        emitToAuthenticated('log', '❌ Sesi kadaluarsa/gagal. Silakan scan ulang.');
+        // Hanya panggil initialize tanpa menghapus data sesi fisik agar tidak loop
+        setTimeout(() => initializeClient(), 5000);
     });
 
-    // Event: WhatsApp Terputus
     client.on('disconnected', () => {
         emitToAuthenticated('log', '⚠️ WhatsApp Terputus.');
         emitToAuthenticated('status', 'scan');
     });
 
     client.initialize().catch(err => {
-        if (isResetting) return;
-        console.error("Init Error:", err.message);
-        setTimeout(() => resetClient(null, false), 10000);
+        console.error("Init Catch Error:", err.message);
+        // JANGAN panggil resetClient/force_reload di sini untuk mencegah looping reload browser
     });
 }
 
@@ -110,6 +108,9 @@ async function resetClient(triggerUser = null, deleteSession = false) {
     if (isResetting) return;
     isResetting = true;
 
+    // Paksa reload browser HANYA saat aksi reset manual/terjadwal dilakukan
+    io.emit('force_reload'); 
+
     // Reset State Sesi Aplikasi
     sessionConfig = {
         isInitialized: false,
@@ -118,34 +119,25 @@ async function resetClient(triggerUser = null, deleteSession = false) {
         connectedUsers: []
     };
 
-    // Paksa semua browser reload ke halaman pemilihan mode
-    io.emit('force_reload'); 
-
     try {
         if(client) {
             try { await client.destroy(); } catch (err) {}
             client = null; 
         }
         
-        // Jeda agar proses Chrome benar-benar mati sebelum menghapus folder
-        console.log("System: Menunggu pembersihan cache (5s)...");
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        // Jeda agar proses browser benar-benar mati
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
         if (deleteSession) {
             const authPath = path.join(__dirname, '.wwebjs_auth');
-            const cachePath = path.join(__dirname, '.wwebjs_cache');
-            
-            const safeDelete = (p) => {
-                if (fs.existsSync(p)) {
-                    try { fs.rmSync(p, { recursive: true, force: true }); return true; } 
-                    catch (err) { return false; }
+            if (fs.existsSync(authPath)) {
+                try { 
+                    fs.rmSync(authPath, { recursive: true, force: true }); 
+                    console.log("System: Session folders deleted.");
+                } catch (err) {
+                    console.error("Pembersihan file gagal, sedang digunakan sistem.");
                 }
-                return true;
-            };
-
-            safeDelete(authPath);
-            safeDelete(cachePath);
-            console.log("System: Session folders deleted.");
+            }
         }
         
         isResetting = false;
@@ -161,9 +153,8 @@ initializeClient();
 
 // --- SOCKET.IO COMMUNICATION ---
 io.on('connection', (socket) => {
-    socket.data.authenticated = false; // Status awal: Belum login aplikasi
+    socket.data.authenticated = false;
 
-    // 1. Cek apakah sesi sudah dibuat hari ini
     socket.on('check_session_status', () => {
         socket.emit('session_status', {
             isInitialized: sessionConfig.isInitialized,
@@ -171,65 +162,46 @@ io.on('connection', (socket) => {
         });
     });
 
-    // 2. Setup Sesi Baru (Pendaftar pertama hari ini)
     socket.on('create_session', (data) => {
         if (sessionConfig.isInitialized) return;
-
         sessionConfig.isInitialized = true;
         sessionConfig.mode = data.mode;
         sessionConfig.password = data.password;
-        
         loginSocket(socket, data.username);
         socket.broadcast.emit('session_created', { mode: data.mode });
     });
 
-    // 3. Login ke Sesi yang sudah ada
     socket.on('login_session', (data) => {
-        // Cek Limit untuk mode tim
         if (sessionConfig.mode === 'team') {
             sessionConfig.connectedUsers = sessionConfig.connectedUsers.filter(id => io.sockets.sockets.has(id));
             if (sessionConfig.connectedUsers.length >= 3) {
                 return socket.emit('login_result', { success: false, message: 'Ruang penuh (Maksimal 3 User).' });
             }
         }
-
-        if (data.password === sessionConfig.password) {
-            loginSocket(socket, data.username);
-        } else {
-            socket.emit('login_result', { success: false, message: 'Password salah!' });
-        }
+        if (data.password === sessionConfig.password) loginSocket(socket, data.username);
+        else socket.emit('login_result', { success: false, message: 'Password salah!' });
     });
 
-    // Helper: Login internal socket
     function loginSocket(sock, user) {
         sock.data.authenticated = true;
         sock.data.username = user;
-        if (!sessionConfig.connectedUsers.includes(sock.id)) {
-            sessionConfig.connectedUsers.push(sock.id);
-        }
+        if (!sessionConfig.connectedUsers.includes(sock.id)) sessionConfig.connectedUsers.push(sock.id);
         sock.emit('login_result', { success: true, username: user, mode: sessionConfig.mode });
-        
-        // Kirim status WA terkini ke user yang baru login
         if(client && client.info) sock.emit('status', 'ready');
         else sock.emit('status', 'scan');
     }
 
-    // EVENT: Logout/Reset Manual
     socket.on('logout', async () => {
         if(!socket.data.authenticated) return;
         console.log(`User ${socket.data.username} melakukan Reset System.`);
         await resetClient(socket.data.username, true); 
     });
 
-    // EVENT: Proses Blast WhatsApp
     socket.on('blast', async (data) => {
         if(!socket.data.authenticated) return;
         const { targets } = data;
         const sender = socket.data.username;
-        
-        const emitLog = (msg) => {
-             io.fetchSockets().then(s => s.forEach(so => { if(so.data.authenticated) so.emit('log', msg) }));
-        }
+        const emitLog = (msg) => io.fetchSockets().then(s => s.forEach(so => { if(so.data.authenticated) so.emit('log', msg) }));
 
         emitLog(`🚀 ${sender}: Menjalankan pengiriman ke ${targets.length} target...`);
         
@@ -239,7 +211,6 @@ io.on('connection', (socket) => {
             if (num.startsWith('0')) num = '62' + num.slice(1);
             const chatId = num + '@c.us';
 
-            // Logika Placeholder: Mengganti tag dengan data dari GMap Scout
             let msg = t.pesan.replace(/\[Name\]/gi, t.nama);
             msg = msg.replace(/\[Address\]/gi, t.alamat || "");
             msg = msg.replace(/\[enter\]/g, "\n"); 
@@ -252,17 +223,12 @@ io.on('connection', (socket) => {
                     }));
                     emitLog(`✅ Terkirim ke: ${t.nama}`);
                 }
-            } catch (err) {
-                emitLog(`❌ Gagal ke ${t.nama}: ${err.message}`);
-            }
+            } catch (err) { emitLog(`❌ Gagal ke ${t.nama}: ${err.message}`); }
 
-            // Jeda acak (Human Simulation) 3-7 detik
             if (i < targets.length - 1) {
-                const delay = Math.floor(Math.random() * 4000) + 3000;
-                await new Promise(r => setTimeout(r, delay));
+                await new Promise(r => setTimeout(r, Math.floor(Math.random() * 4000) + 3000));
             }
         }
-
         emitLog(`🎉 ${sender}: Pengiriman massal selesai.`);
         socket.emit('finished', true);
     });
@@ -280,20 +246,13 @@ function scheduleMidnightReset() {
     const night = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
     const msToMidnight = night.getTime() - now.getTime();
     
-    console.log(`System: Auto-Reset dijadwalkan dalam ${Math.floor(msToMidnight/1000/60)} menit.`);
-
     setTimeout(() => {
-        console.log('🕛 Midnight! Melakukan Auto-Reset System...');
         resetClient('Auto-Scheduler', true); 
-        // Set interval harian setelah reset pertama
         setInterval(() => {
-            console.log('🕛 Daily Reset...');
             resetClient('Auto-Scheduler', true);
         }, 24 * 60 * 60 * 1000);
     }, msToMidnight);
 }
 scheduleMidnightReset();
 
-server.listen(3000, () => {
-    console.log(`🚀 ${APP_NAME} Server aktif di http://localhost:3000`);
-});
+server.listen(3000, () => console.log(`🚀 Server aktif di port 3000`));
