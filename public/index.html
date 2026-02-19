@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>BlastFlow - Marketing Automation</title>
     
-    <!-- FAVICON (Ini agar ikon di tab browser berubah dari Globe jadi Logo Anda) -->
+    <!-- FAVICON -->
     <link rel="icon" type="image/png" href="/img/BlastFlow.png">
 
     <!-- Core Libraries -->
@@ -16,627 +16,335 @@
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap');
-        body { font-family: 'Outfit', sans-serif; }
-        
-        /* Glassmorphism & Animations */
-        .glass-overlay { 
-            background: rgba(15, 23, 42, 0.6); 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px);
-        }
-        
-        .fade-in { animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-        .slide-up { animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        .scale-in { animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    <!-- LINK KE CSS EKSTERNAL -->
+    <link rel="stylesheet" href="/css/style.css">
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    </style>
-</head>
-<body class="bg-slate-100 h-screen flex overflow-hidden text-slate-800">
-
-    <!-- 1. LOGIN SCREEN OVERLAY (LOCK SCREEN) -->
-    <div id="login-screen" class="fixed inset-0 z-[60] glass-overlay flex items-center justify-center fade-in">
-        <div class="bg-white/90 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full border border-white/50 slide-up">
-            
-            <!-- LOGO DI LOGIN SCREEN -->
-            <div class="w-24 h-24 mx-auto mb-6 bg-transparent flex items-center justify-center">
-                <!-- UPDATE: Menggunakan /img/BlastFlow.png -->
-                <img src="/img/BlastFlow.png" 
-                     onerror="this.style.display='none'; document.getElementById('fallback-icon-login').style.display='flex'" 
-                     class="w-full h-full object-contain drop-shadow-xl" 
-                     alt="BlastFlow Logo">
-                
-                <!-- Fallback Icon (Muncul jika gambar tidak ditemukan) -->
-                <div id="fallback-icon-login" class="hidden w-20 h-20 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-2xl items-center justify-center shadow-lg shadow-indigo-500/40">
-                    <i class="fa-solid fa-rocket text-4xl text-white"></i>
-                </div>
-            </div>
-            
-            <h1 class="text-3xl font-bold text-slate-800 mb-2">BlastFlow</h1>
-            <p class="text-slate-500 mb-8">Ultimate WhatsApp Marketing Tool</p>
-            
-            <div id="login-status-area">
-                <!-- Tombol Login -->
-                <button onclick="showQrModal()" class="group w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-xl shadow-slate-900/20 hover:bg-slate-800 hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-3">
-                    <i class="fa-brands fa-whatsapp text-2xl text-emerald-400 group-hover:rotate-12 transition-transform"></i>
-                    <span>Login with WhatsApp</span>
-                </button>
-                <p class="text-xs text-slate-400 mt-4">Scan QR code to access dashboard</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. QR CODE MODAL (Pop Up) -->
-    <div id="qr-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/90 backdrop-blur-md fade-in">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center scale-in relative">
-            <button onclick="closeQrModal()" class="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
-            
-            <h2 class="text-xl font-bold text-slate-800 mb-1">Link Device</h2>
-            <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Open WA > Linked Devices > Scan</p>
-            
-            <div class="bg-white p-2 rounded-xl border-2 border-slate-100 inline-block shadow-inner relative">
-                <!-- Loading Animation sebelum QR muncul -->
-                <div id="qr-loading" class="absolute inset-0 flex items-center justify-center bg-slate-50 z-10">
-                    <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-2xl"></i>
-                </div>
-                <img id="qr-image" class="w-56 h-56 object-contain" alt="QR Code">
-            </div>
-            
-            <p class="mt-6 text-xs font-mono text-emerald-600 bg-emerald-50 py-2 rounded border border-emerald-100 animate-pulse">
-                <i class="fa-solid fa-wifi mr-2"></i> Waiting for connection...
-            </p>
-        </div>
-    </div>
-
-    <!-- ==================== DASHBOARD CONTENT (HIDDEN BEHIND LOGIN) ==================== -->
-
-    <!-- SIDEBAR -->
-    <div class="w-72 bg-slate-900 text-white flex flex-col shadow-2xl z-20 transition-all duration-300">
-        <div class="p-8 flex items-center gap-4">
-            
-            <!-- LOGO DI SIDEBAR -->
-            <div class="w-12 h-12 flex-shrink-0">
-                <!-- UPDATE: Menggunakan /img/BlastFlow.png -->
-                <img src="/img/BlastFlow.png" 
-                     onerror="this.style.display='none'; document.getElementById('fallback-icon-sidebar').classList.remove('hidden'); document.getElementById('fallback-icon-sidebar').classList.add('flex')" 
-                     class="w-full h-full object-contain rounded-lg bg-white/5 p-1" 
-                     alt="Logo">
-                     
-                <!-- Fallback Icon -->
-                <div id="fallback-icon-sidebar" class="hidden w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl items-center justify-center shadow-lg shadow-indigo-500/30 mx-auto">
-                    <i class="fa-solid fa-paper-plane text-white text-lg"></i>
-                </div>
-            </div>
-
-            <div>
-                <h1 class="text-xl font-bold tracking-tight">BlastFlow</h1>
-                <div class="flex items-center gap-2 mt-1">
-                    <span class="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></span>
-                    <p class="text-[10px] font-mono text-emerald-500 uppercase tracking-widest font-bold">ONLINE</p>
-                </div>
-            </div>
-        </div>
-
-        <nav class="flex-1 px-4 space-y-3 mt-4">
-            <div class="text-[10px] font-bold text-slate-500 uppercase px-4 mb-2 tracking-wider">Dashboard</div>
-            
-            <button onclick="switchMode('broadcast')" id="nav-broadcast" class="nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition text-sm font-medium bg-white/10 text-white border border-white/5 hover:bg-white/20">
-                <i class="fa-solid fa-bullhorn w-5 text-center text-indigo-400"></i> Broadcast
-            </button>
-            
-            <button onclick="switchMode('custom')" id="nav-custom" class="nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5">
-                <i class="fa-solid fa-comments w-5 text-center text-emerald-400"></i> Personal Chat
-            </button>
-        </nav>
-
-        <!-- FOOTER -->
-        <div class="p-6 border-t border-slate-800/50">
-            <button onclick="manualLogout()" class="group w-full flex items-center justify-center gap-3 text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 py-3 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-300">
-                <i class="fa-solid fa-power-off group-hover:rotate-90 transition-transform"></i>
-                LOGOUT DEVICE
-            </button>
-            <p class="text-[10px] text-center text-slate-600 mt-4">Auto-Reset at 00:00</p>
-        </div>
-    </div>
-
-    <!-- MAIN AREA -->
-    <div class="flex-1 flex flex-col relative bg-white">
-        <!-- HEADER -->
-        <header class="h-20 border-b border-slate-100 flex justify-between items-center px-8 bg-white/80 backdrop-blur z-10 sticky top-0">
-            <div>
-                <h2 id="page-title" class="font-bold text-xl text-slate-800">Overview</h2>
-                <p class="text-xs text-slate-400 mt-0.5">Manage your automation campaigns</p>
-            </div>
-            
-            <div class="flex items-center gap-6">
-                <div class="text-right hidden md:block">
-                    <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Targets Loaded</p>
-                    <p class="font-bold text-slate-800 text-2xl leading-none" id="total-data">0</p>
-                </div>
-                
-                <div class="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
-
-                <div class="relative group">
-                    <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                    <button class="flex items-center gap-3 bg-slate-900 text-white px-6 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-slate-200 hover:bg-slate-800 hover:scale-105 transition-all active:scale-95">
-                        <i class="fa-solid fa-file-excel text-emerald-400"></i> 
-                        <span>Import Excel</span>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- CONTENT VIEWS -->
-        <div class="flex-1 overflow-hidden relative bg-slate-50">
-            
-            <!-- EMPTY STATE -->
-            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 fade-in">
-                <div class="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 border border-slate-100 animate-pulse">
-                    <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-300"></i>
-                </div>
-                <h3 class="font-bold text-slate-700 text-xl">No Data Imported</h3>
-                <p class="text-sm mt-2 text-slate-500 max-w-xs text-center">Upload your Excel file to start sending messages. (Format: Name | Number)</p>
-            </div>
-
-            <!-- VIEW 1: BROADCAST -->
-            <div id="view-broadcast" class="hidden h-full flex p-8 gap-8 fade-in relative">
-                <!-- Message Box -->
-                <div class="w-1/3 flex flex-col h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden slide-up">
-                    <div class="p-6 border-b border-slate-50 bg-slate-50/50">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-pen"></i> Broadcast Message
-                        </label>
-                    </div>
-                    <textarea id="broadcast-msg" class="flex-1 p-6 text-sm outline-none resize-none text-slate-600 leading-relaxed placeholder:text-slate-300" 
-                    placeholder="Hello [Name],&#10;&#10;We are writing to inform you about..."></textarea>
-                    
-                    <div class="p-6 bg-slate-50/50 border-t border-slate-50">
-                        <div class="flex gap-2 mb-4">
-                            <span class="text-[10px] px-2 py-1 bg-indigo-50 text-indigo-600 rounded border border-indigo-100 font-mono cursor-pointer hover:bg-indigo-100" onclick="insertTag('[Name]')">[Name]</span>
-                            <span class="text-[10px] px-2 py-1 bg-slate-100 text-slate-500 rounded border border-slate-200 font-mono cursor-pointer hover:bg-slate-200" onclick="insertTag('[enter]')">[enter]</span>
-                        </div>
-                        <button onclick="kirimBroadcast()" id="btn-broadcast" disabled class="w-full bg-slate-200 text-slate-400 font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 cursor-not-allowed">
-                            <span>Send Broadcast</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Queue List -->
-                <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden slide-up" style="animation-delay: 0.1s;">
-                    <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Sending Queue</span>
-                        </div>
-                        <button onclick="hapusSemuaData()" class="text-xs text-red-500 hover:text-red-600 font-bold hover:bg-red-50 px-3 py-1.5 rounded-lg transition">
-                            Clear Queue
-                        </button>
-                    </div>
-                    <div id="broadcast-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
-                </div>
-            </div>
-
-            <!-- VIEW 2: CUSTOM -->
-            <div id="view-custom" class="hidden h-full flex flex-col p-8 gap-6 fade-in relative">
-                <!-- Toolbar -->
-                <div class="flex gap-4 items-center bg-white p-2 pl-4 rounded-2xl shadow-sm border border-slate-200 slide-up">
-                    <i class="fa-solid fa-search text-slate-400"></i>
-                    <input type="text" id="search-custom" onkeyup="filterCustomCards()" 
-                    class="flex-1 bg-transparent text-sm outline-none text-slate-700 py-2" placeholder="Search contact...">
-                    <div class="h-8 w-px bg-slate-100 mx-2"></div>
-                    <button onclick="kirimCustomReady()" id="btn-custom" disabled class="px-8 py-3 bg-slate-100 text-slate-400 font-bold rounded-xl text-sm transition cursor-not-allowed">
-                        Send Messages
-                    </button>
-                </div>
-
-                <!-- Grid -->
-                <div id="custom-grid" class="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-12 pr-2"></div>
-            </div>
-        </div>
-
-        <!-- LOG PANEL (Overlay) -->
-        <div id="log-panel" class="absolute bottom-6 right-8 w-96 max-h-56 glass-dark text-emerald-400 p-4 rounded-2xl text-[10px] font-mono shadow-2xl overflow-y-auto hidden border border-slate-700 z-40 transition-all">
-        </div>
-    </div>
-
+    <!-- Theme Logic (Mencegah Flicker saat Load) -->
     <script>
-        const socket = io();
-        let rawData = []; 
-        let currentMode = 'broadcast'; 
-        let isConnected = false;
-
-        // --- TOAST NOTIFICATION ---
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
-            didOpen: (toast) => {
-                toast.addEventListener('mouseenter', Swal.stopTimer)
-                toast.addEventListener('mouseleave', Swal.resumeTimer)
-            }
-        });
-
-        // --- LOGIN & MODAL LOGIC ---
-        function showQrModal() {
-            if(isConnected) {
-                Swal.fire('Already Connected', 'You are logged in.', 'info');
-                return;
-            }
-            document.getElementById('qr-modal').classList.remove('hidden');
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
         }
+    </script>
 
-        function closeQrModal() {
-            document.getElementById('qr-modal').classList.add('hidden');
+    <!-- Tailwind Config for Dark Mode -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
         }
+    </script>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 h-screen flex overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
 
-        // --- SOCKET EVENTS ---
-        socket.on('status', (status) => {
-            const dot = document.getElementById('connection-dot');
-            const txt = document.getElementById('connection-text');
-            const loginScreen = document.getElementById('login-screen');
-            const qrModal = document.getElementById('qr-modal');
+    <!-- ========================================================= -->
+    <!-- LAYER 1: SETUP & LOGIN SESSION (GERBANG DEPAN)            -->
+    <!-- ========================================================= -->
 
-            if(status === 'ready') {
-                isConnected = true;
-                // UNLOCK SCREEN: Hide Login Overlay & QR Modal
-                loginScreen.classList.add('hidden');
-                qrModal.classList.add('hidden');
+    <!-- A. MODE SELECTION SCREEN -->
+    <div id="mode-selection-screen" class="hidden fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center fade-in p-4 w-full h-full">
+        
+        <!-- STATUS BADGE: AVAILABLE -->
+        <div class="absolute top-6 right-6 md:top-8 md:right-8">
+            <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-sm shadow-lg shadow-emerald-900/20">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span class="text-xs font-bold text-emerald-400 tracking-wider font-mono">SYSTEM AVAILABLE</span>
+            </div>
+        </div>
 
-                // Sidebar Status
-                if(dot && txt) {
-                    dot.className = "w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]";
-                    txt.innerText = "ONLINE";
-                    txt.className = "text-[10px] font-mono text-emerald-500 uppercase tracking-widest font-bold";
-                }
-                
-                Toast.fire({ icon: 'success', title: 'Login Successful!' });
-            } 
-            else if (status === 'scan') {
-                isConnected = false;
-                // LOCK SCREEN: Show Login Overlay
-                loginScreen.classList.remove('hidden');
-                document.getElementById('qr-loading').classList.add('hidden');
+        <div class="text-center mb-10 text-white">
+            <h1 class="text-4xl font-bold mb-2">Welcome to BlastFlow</h1>
+            <p class="text-slate-400">Choose how you want to start your session today</p>
+        </div>
+        
+        <div class="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
+            <!-- Card Individual -->
+            <div onclick="selectMode('individual')" class="flex-1 bg-white/5 border border-white/10 p-8 rounded-3xl cursor-pointer hover:bg-white/10 hover:border-indigo-500 hover:scale-105 transition-all group">
+                <div class="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-indigo-500 transition">
+                    <i class="fa-solid fa-user-lock text-3xl text-indigo-400 group-hover:text-white"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Individual / Privacy</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">Secure session for yourself. Only you can access with a password. Ideal for personal use.</p>
+            </div>
 
-                if(dot && txt) {
-                    dot.className = "w-2 h-2 bg-yellow-500 rounded-full animate-pulse";
-                    txt.innerText = "WAITING SCAN";
-                    txt.className = "text-[10px] font-mono text-yellow-500 uppercase tracking-widest font-bold";
-                }
-            } 
-            else if (status === 'reset') {
-                isConnected = false;
-                loginScreen.classList.remove('hidden');
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Session Ended',
-                    text: 'Please login again.',
-                    timer: 3000,
-                    showConfirmButton: false
-                }).then(() => location.reload());
-            }
-        });
+            <!-- Card Team -->
+            <div onclick="selectMode('team')" class="flex-1 bg-white/5 border border-white/10 p-8 rounded-3xl cursor-pointer hover:bg-white/10 hover:border-emerald-500 hover:scale-105 transition-all group">
+                <div class="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-emerald-500 transition">
+                    <i class="fa-solid fa-users text-3xl text-emerald-400 group-hover:text-white"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Team Collaboration</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">Shared session for up to 3 people. Create a team password and share the link.</p>
+            </div>
+        </div>
+        <p class="text-[10px] text-slate-500 mt-12">Session resets automatically at 00:00</p>
+    </div>
 
-        socket.on('qr', (url) => {
-            document.getElementById('qr-image').src = url;
-            document.getElementById('qr-loading').classList.add('hidden');
-        });
-
-        socket.on('log', (msg) => {
-            const panel = document.getElementById('log-panel');
-            panel.classList.remove('hidden');
-            const d = document.createElement('div');
-            d.innerHTML = `<span class="opacity-50 mr-2">[${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]</span>${msg}`;
-            panel.appendChild(d);
-            panel.scrollTop = panel.scrollHeight;
-        });
-
-        socket.on('sent_success', (data) => {
-            rawData = rawData.filter(item => item.id !== data.id);
-            document.getElementById('total-data').innerText = rawData.length;
-
-            if(currentMode === 'broadcast') {
-                const el = document.getElementById(`row-${data.id}`);
-                if(el) { 
-                    el.style.opacity = '0'; 
-                    el.style.transform = 'translateX(50px)'; 
-                    setTimeout(() => el.remove(), 300); 
-                }
-            } else {
-                const el = document.getElementById(`card-${data.id}`);
-                if(el) { el.classList.add('slide-out'); setTimeout(() => el.remove(), 500); }
-            }
-        });
-
-        socket.on('finished', () => {
-            enableButtons();
-            Swal.fire('Done!', 'All messages sent.', 'success');
-        });
-
-        // --- ACTIONS ---
-        function manualLogout() {
-            Swal.fire({
-                title: 'Logout Device?',
-                text: "You will be disconnected and need to scan QR again.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                confirmButtonText: 'Yes, Logout'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    socket.emit('logout');
-                    Swal.fire('Logged Out', 'System is restarting...', 'success').then(() => location.reload());
-                }
-            });
-        }
-
-        function insertTag(tag) {
-            const area = document.getElementById('broadcast-msg');
-            area.value += tag;
-            area.focus();
-        }
-
-        // --- EXCEL PARSER ---
-        document.getElementById('fileExcel').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const wb = XLSX.read(new Uint8Array(event.target.result), {type: 'array'});
-                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1});
-                    parsingExcel(rows);
-                } catch(err) {
-                    Swal.fire('Error', 'Invalid Excel File', 'error');
-                }
-                e.target.value = '';
-            };
-            reader.readAsArrayBuffer(file);
-        });
-
-        function parsingExcel(rows) {
-            let idxNama = -1, idxHP = -1;
-            for(let r=0; r<Math.min(rows.length, 5); r++){
-                const row = rows[r];
-                for(let c=0; c<row.length; c++){
-                    const cell = String(row[c]);
-                    const clean = cell.replace(/\D/g,'');
-                    if(idxHP === -1 && clean.length > 8 && (clean.startsWith('62') || clean.startsWith('08'))) idxHP = c;
-                    if(idxNama === -1 && cell.length > 3 && isNaN(cell)) idxNama = c;
-                }
-            }
-            if(idxHP === -1) idxHP = 1; if(idxNama === -1) idxNama = 0;
-
-            let count = 0;
-            rows.forEach((row, i) => {
-                if(i===0 && String(row[idxHP]).length < 5) return;
-                let nama = row[idxNama] ? String(row[idxNama]) : "Partner";
-                let hp = row[idxHP] ? String(row[idxHP]).replace(/\D/g,'') : "";
-                if(hp.startsWith('0')) hp = '62' + hp.slice(1);
-
-                if(hp.length > 9) {
-                    rawData.push({ id: Date.now() + Math.random().toString(36).substr(2, 9), nama: nama, nomor: hp, pesanKhusus: "" });
-                    count++;
-                }
-            });
+    <!-- B. SETUP FORM -->
+    <div id="setup-screen" class="hidden fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center fade-in w-full h-full">
+        <!-- PERBAIKAN: dark:bg-slate-800 agar kartu tampak abu-abu gelap, bukan biru-hitam atau putih silau -->
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center relative border dark:border-slate-700">
+            <button onclick="backToSelection()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-800 dark:hover:text-white"><i class="fa-solid fa-arrow-left"></i></button>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-1" id="setup-title">Setup Password</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-6" id="setup-desc">Create a password for this session</p>
             
-            document.getElementById('total-data').innerText = rawData.length;
-            switchMode(currentMode);
-            Toast.fire({ icon: 'success', title: `Imported ${count} Contacts` });
-        }
+            <form onsubmit="submitSetup(event)">
+                <div class="relative mb-3">
+                    <i class="fa-solid fa-user absolute left-4 top-3.5 text-slate-400"></i>
+                    <input type="text" id="setup-username" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm text-slate-800 dark:text-white" placeholder="Your Name (e.g. Budi)" required>
+                </div>
+                <div class="relative mb-6">
+                    <i class="fa-solid fa-key absolute left-4 top-3.5 text-slate-400"></i>
+                    <input type="password" id="setup-pass" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm text-slate-800 dark:text-white" placeholder="Create Session Password..." required>
+                </div>
+                <button type="submit" class="w-full bg-slate-900 dark:bg-indigo-600 dark:text-white text-white font-bold py-3 rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-500 transition shadow-lg">Start Session</button>
+            </form>
+        </div>
+    </div>
 
-        // --- RENDERERS ---
-        function renderBroadcastList() {
-            const list = document.getElementById('broadcast-list');
-            list.innerHTML = '';
-            rawData.forEach(item => {
-                const div = document.createElement('div');
-                div.id = `row-${item.id}`;
-                div.className = "flex justify-between items-center p-3 px-4 hover:bg-slate-50 border-b border-slate-50 transition duration-300 group";
-                div.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition">
-                            ${item.nama.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <div class="text-sm font-bold text-slate-700">${item.nama}</div>
-                            <div class="text-[10px] text-slate-400 font-mono tracking-wide">${item.nomor}</div>
+    <!-- C. LOGIN FORM -->
+    <div id="login-form-screen" class="hidden fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center fade-in w-full h-full">
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center relative overflow-hidden border dark:border-slate-700">
+            
+            <!-- STATUS BADGE: BUSY -->
+            <div class="absolute top-4 right-4">
+                <div class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 font-mono text-red-500">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    <span class="text-[10px] font-bold uppercase tracking-wide">In Use</span>
+                </div>
+            </div>
+
+            <div class="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl shadow-inner mt-2">🔑</div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-1">Session Active</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-6" id="login-mode-badge">Mode: Team</p>
+            
+            <form onsubmit="submitLogin(event)">
+                <div class="relative mb-3">
+                    <i class="fa-solid fa-user absolute left-4 top-3.5 text-slate-400"></i>
+                    <input type="text" id="login-username" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm text-slate-800 dark:text-white" placeholder="Your Name" required>
+                </div>
+                <div class="relative mb-6">
+                    <i class="fa-solid fa-key absolute left-4 top-3.5 text-slate-400"></i>
+                    <input type="password" id="login-pass" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 pr-4 outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm text-slate-800 dark:text-white" placeholder="Enter Session Password..." required>
+                </div>
+                <button type="submit" class="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white font-bold py-3 rounded-xl hover:bg-indigo-600 dark:hover:bg-slate-200 transition shadow-lg">Join Session</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- LAYER 2: WHATSAPP CONNECTION (LOCK SCREEN)                -->
+    <!-- ========================================================= -->
+
+    <div id="login-screen" class="hidden fixed inset-0 z-[60] glass-overlay flex items-center justify-center fade-in w-full h-full">
+        <div class="bg-white/90 dark:bg-slate-800/95 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full border border-white/50 dark:border-slate-700 slide-up backdrop-blur-xl">
+            <div class="w-24 h-24 mx-auto mb-6 bg-transparent flex items-center justify-center">
+                <img src="/img/BlastFlow.png" onerror="this.style.display='none'; document.getElementById('fb-icon').style.display='flex'" class="w-full h-full object-contain drop-shadow-xl">
+                <div id="fb-icon" class="hidden w-20 h-20 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-2xl items-center justify-center shadow-lg"><i class="fa-solid fa-rocket text-4xl text-white"></i></div>
+            </div>
+            <h1 class="text-3xl font-bold text-slate-800 dark:text-white mb-2">BlastFlow</h1>
+            <p class="text-slate-500 dark:text-slate-400 mb-8">WhatsApp Status: <span class="font-bold text-red-500">Disconnected</span></p>
+            <div id="login-status-area">
+                <button onclick="showQrModal()" class="group w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white font-bold py-4 rounded-xl shadow-xl hover:bg-slate-800 dark:hover:bg-slate-100 hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-3">
+                    <i class="fa-brands fa-whatsapp text-2xl text-emerald-400 dark:text-emerald-600 group-hover:rotate-12 transition-transform"></i>
+                    <span>Connect WhatsApp</span>
+                </button>
+                <button onclick="location.reload()" class="mt-8 flex items-center justify-center gap-2 w-full text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white font-bold transition">
+                    <i class="fa-solid fa-arrow-left"></i> Exit Session
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- LAYER 3: OVERLAYS & MODALS                                -->
+    <!-- ========================================================= -->
+
+    <div id="logout-overlay" class="hidden fixed inset-0 z-[80] bg-slate-900 text-white flex flex-col items-center justify-center fade-in w-full h-full">
+        <div class="w-24 h-24 relative mb-6">
+            <div class="absolute inset-0 rounded-full border-4 border-slate-700"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-t-emerald-500 animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center"><i class="fa-solid fa-trash text-2xl text-emerald-500 animate-pulse"></i></div>
+        </div>
+        <h2 class="text-2xl font-bold mb-2">Reseting System...</h2>
+        <p class="text-slate-400 text-sm">Cleaning session files and cache.</p>
+    </div>
+
+    <div id="qr-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/90 backdrop-blur-md fade-in w-full h-full">
+        <!-- PERBAIKAN: dark:bg-slate-800 -->
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center scale-in relative border dark:border-slate-700">
+            <button onclick="closeQrModal()" class="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <h2 id="qr-title" class="text-xl font-bold text-slate-800 dark:text-white mb-1">Link Device</h2>
+            <p id="qr-subtitle" class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Open WA > Linked Devices > Scan</p>
+            <div id="qr-content">
+                <div class="bg-white p-2 rounded-xl border-2 border-slate-100 dark:border-slate-700 inline-block shadow-inner relative">
+                    <div id="qr-loading" class="absolute inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 z-10">
+                        <div class="flex flex-col items-center">
+                            <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-3xl mb-2"></i>
+                            <span class="text-[10px] text-slate-400 font-bold animate-pulse mt-2">GENERATING QR...</span>
                         </div>
                     </div>
-                    <div class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded border border-slate-200">WAITING</div>
-                `;
-                list.appendChild(div);
-            });
-            checkButtonState();
-        }
+                    <img id="qr-image" class="w-56 h-56 object-contain" alt="QR Code">
+                </div>
+            </div>
+            <div id="qr-success" class="hidden flex flex-col items-center justify-center py-6 fade-in">
+                <div class="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mb-6 animate-bounce shadow-lg shadow-emerald-200 dark:shadow-none"><i class="fa-solid fa-check text-4xl text-emerald-500"></i></div>
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white">Scan Successful!</h3>
+                <p class="text-slate-500 dark:text-slate-400 text-sm mt-2 mb-6">Redirecting to dashboard...</p>
+                <div class="w-full bg-slate-100 dark:bg-slate-900 rounded-full h-2 overflow-hidden relative"><div class="absolute top-0 left-0 h-full w-1/2 bg-indigo-500 rounded-full animate-loading-bar"></div></div>
+            </div>
+        </div>
+    </div>
 
-        function renderCustomGrid() {
-            const grid = document.getElementById('custom-grid');
-            grid.innerHTML = '';
-            rawData.forEach(item => {
-                const div = document.createElement('div');
-                div.id = `card-${item.id}`;
-                div.className = "custom-card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl hover:border-indigo-200 transition relative group scale-in";
-                div.setAttribute('data-nama', item.nama.toLowerCase());
-                div.setAttribute('data-hp', item.nomor);
-                
-                div.innerHTML = `
-                    <div class="flex justify-between mb-4 items-start">
-                        <div class="flex gap-3 items-center">
-                            <div class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center text-xs font-bold border border-slate-200">
-                                ${item.nama.charAt(0)}
-                            </div>
-                            <div>
-                                <div class="font-bold text-sm text-slate-700 leading-tight">${item.nama}</div>
-                                <div class="text-[10px] font-mono text-slate-400 mt-0.5">${item.nomor}</div>
-                            </div>
-                        </div>
-                        <button onclick="hapusSatu('${item.id}')" class="text-slate-300 hover:text-red-500 transition p-1 hover:bg-red-50 rounded"><i class="fa-solid fa-xmark"></i></button>
+    <!-- ========================================================= -->
+    <!-- LAYER 4: MAIN APP DASHBOARD                               -->
+    <!-- ========================================================= -->
+
+    <div id="main-app" class="hidden w-full h-full flex transition-colors duration-300">
+        <!-- Sidebar -->
+        <div class="w-72 bg-slate-900 text-white flex flex-col shadow-2xl z-20 transition-all duration-300 shrink-0">
+            <div class="p-8 flex items-center gap-4">
+                <div class="w-12 h-12 flex-shrink-0">
+                    <img src="/img/BlastFlow.png" onerror="this.style.display='none'; document.getElementById('sb-icon').classList.remove('hidden'); document.getElementById('sb-icon').classList.add('flex')" class="w-full h-full object-contain rounded-lg bg-white/5 p-1">
+                    <div id="sb-icon" class="hidden w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl items-center justify-center shadow-lg shadow-indigo-500/30 mx-auto"><i class="fa-solid fa-paper-plane text-white text-lg"></i></div>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">BlastFlow</h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span id="connection-dot" class="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></span>
+                        <p id="connection-text" class="text-[10px] font-mono text-emerald-500 uppercase tracking-widest font-bold">ONLINE</p>
                     </div>
-                    <textarea class="custom-msg-input w-full bg-slate-50/50 border border-slate-100 rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition resize-none h-24 text-slate-600 placeholder:text-slate-300" 
-                    placeholder="Type custom message for ${item.nama}..." oninput="updateCustomData('${item.id}', this.value)">${item.pesanKhusus || ''}</textarea>
-                `;
-                grid.appendChild(div);
-            });
-        }
-
-        // --- BUTTON ACTIONS ---
-        function kirimBroadcast() {
-            const msg = document.getElementById('broadcast-msg').value;
-            if(!msg) return Swal.fire('Oops', 'Please write a broadcast message first!', 'warning');
-
-            Swal.fire({
-                title: 'Start Broadcast?',
-                text: `Sending to ${rawData.length} contacts. This may take a while.`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
-                confirmButtonText: 'Yes, Start Sending'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    disableButtons();
-                    const payload = rawData.map(item => ({ id: item.id, nama: item.nama, nomor: item.nomor, pesan: msg }));
-                    socket.emit('blast', { targets: payload });
-                }
-            });
-        }
-
-        function kirimCustomReady() {
-            const targets = rawData.filter(item => item.pesanKhusus && item.pesanKhusus.trim() !== '').map(item => ({ id: item.id, nama: i.nama, nomor: i.nomor, pesan: i.pesanKhusus }));
+                </div>
+            </div>
             
-            if(targets.length === 0) return Swal.fire('Info', 'Please fill at least one message card.', 'info');
+            <div class="px-8 pb-4 border-b border-slate-800/50 mb-4 flex justify-between items-start">
+                <div class="max-w-[120px]">
+                    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Operator</p>
+                    <p id="display-username" class="text-sm font-bold text-white truncate">Guest</p>
+                    <span id="display-mode" class="text-[10px] bg-indigo-500 px-2 py-0.5 rounded text-white mt-1 inline-block">Team Mode</span>
+                </div>
+                <!-- Theme Toggle Button -->
+                <button id="theme-toggle" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all border border-slate-700">
+                    <i id="theme-toggle-dark-icon" class="hidden fa-solid fa-moon"></i>
+                    <i id="theme-toggle-light-icon" class="hidden fa-solid fa-sun"></i>
+                </button>
+            </div>
 
-            Swal.fire({
-                title: 'Send Personal Messages?',
-                text: `Sending ${targets.length} custom messages.`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
-                confirmButtonText: 'Send Now'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    disableButtons();
-                    socket.emit('blast', { targets });
-                }
-            });
-        }
-
-        function hapusSemuaData() {
-            if(rawData.length === 0) return;
-            Swal.fire({
-                title: 'Clear All Data?',
-                text: "This will remove all imported contacts.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                confirmButtonText: 'Yes, Clear All'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    rawData = [];
-                    document.getElementById('total-data').innerText = 0;
-                    switchMode(currentMode);
-                    Toast.fire({ icon: 'success', title: 'Data Cleared' });
-                }
-            });
-        }
-
-        // --- STATE MANAGEMENT ---
-        function hapusSatu(id) {
-            rawData = rawData.filter(x => x.id !== id);
-            document.getElementById('total-data').innerText = rawData.length;
-            document.getElementById(`card-${id}`).remove();
-        }
-
-        function updateCustomData(id, val) {
-            const idx = rawData.findIndex(x => x.id === id);
-            if(idx > -1) {
-                rawData[idx].pesanKhusus = val;
-                const card = document.getElementById(`card-${id}`);
-                if(val.trim()) { card.classList.add('border-indigo-400', 'ring-1', 'ring-indigo-400'); card.classList.remove('border-slate-100'); }
-                else { card.classList.remove('border-indigo-400', 'ring-1', 'ring-indigo-400'); card.classList.add('border-slate-100'); }
-            }
-            checkButtonState();
-        }
-
-        function filterCustomCards() {
-            const term = document.getElementById('search-custom').value.toLowerCase();
-            document.querySelectorAll('.custom-card').forEach(card => {
-                const txt = card.getAttribute('data-nama') + card.getAttribute('data-hp');
-                card.style.display = txt.includes(term) ? 'block' : 'none';
-            });
-        }
-
-        function checkButtonState() {
-            const btnBroad = document.getElementById('btn-broadcast');
-            const btnCust = document.getElementById('btn-custom');
+            <nav class="flex-1 px-4 space-y-3 mt-4">
+                <div class="text-[10px] font-bold text-slate-500 uppercase px-4 mb-2 tracking-wider">Dashboard</div>
+                <button onclick="switchMode('broadcast')" id="nav-broadcast" class="nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition text-sm font-medium bg-white/10 text-white border border-white/5 hover:bg-white/20"><i class="fa-solid fa-bullhorn w-5 text-center text-indigo-400"></i> Broadcast</button>
+                <button onclick="switchMode('custom')" id="nav-custom" class="nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5"><i class="fa-solid fa-comments w-5 text-center text-emerald-400"></i> Personal Chat</button>
+            </nav>
             
-            // Broadcast State
-            if(rawData.length > 0) {
-                btnBroad.disabled = false;
-                btnBroad.className = "w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition flex items-center justify-center gap-2 transform active:scale-[0.98]";
+            <div class="p-6 border-t border-slate-800/50">
+                <button onclick="location.reload()" class="group w-full flex items-center justify-center gap-3 text-xs font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 py-3 rounded-xl hover:bg-indigo-600 hover:text-white transition-all duration-300 mb-3">
+                    <i class="fa-solid fa-lock"></i> LOCK WORKSPACE
+                </button>
+                <button onclick="manualLogout()" class="group w-full flex items-center justify-center gap-2 text-[10px] font-bold text-red-500/50 hover:text-red-400 transition-all font-mono">
+                    <i class="fa-solid fa-power-off"></i> HARD RESET SYSTEM
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col relative bg-white dark:bg-slate-950 transition-colors duration-300">
+            <header class="h-20 border-b border-slate-100 dark:border-slate-900 flex justify-between items-center px-8 bg-white/80 dark:bg-slate-950/80 backdrop-blur z-10 sticky top-0">
+                <div><h2 id="page-title" class="font-bold text-xl text-slate-800 dark:text-white">Overview</h2><p class="text-xs text-slate-400 mt-0.5">Automated marketing suite</p></div>
+                <div class="flex items-center gap-6">
+                    <div class="text-right hidden md:block"><p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Leads Imported</p><p class="font-bold text-slate-800 dark:text-white text-2xl leading-none" id="total-data">0</p></div>
+                    <div class="h-8 w-px bg-slate-200 dark:bg-slate-900 mx-2 hidden md:block"></div>
+                    <div class="relative group">
+                        <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                        <button class="flex items-center gap-3 bg-slate-900 dark:bg-white text-white dark:text-slate-950 px-6 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-slate-200 dark:shadow-none hover:bg-slate-800 dark:hover:bg-slate-100 hover:scale-105 transition-all active:scale-95"><i class="fa-solid fa-file-excel text-emerald-400 dark:text-emerald-600"></i><span>Import GMap Scout</span></button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-hidden relative bg-slate-50 dark:bg-slate-950 transition-colors">
+                <!-- Empty State -->
+                <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 fade-in">
+                    <div class="w-24 h-24 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-lg mb-6 border border-slate-100 dark:border-slate-700 animate-pulse"><i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-300 dark:text-indigo-600"></i></div>
+                    <h3 class="font-bold text-slate-700 dark:text-slate-200 text-xl">No Leads Data</h3>
+                    <p class="text-sm mt-2 text-slate-500 dark:text-slate-400 max-w-xs text-center">Import Excel from GMap Scout to start your campaign.</p>
+                </div>
+                
+                <!-- View: Broadcast -->
+                <div id="view-broadcast" class="hidden h-full flex p-8 gap-8 fade-in relative overflow-hidden">
+                    <!-- PERBAIKAN: dark:bg-slate-800 -->
+                    <div class="w-1/3 flex flex-col h-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden slide-up shrink-0">
+                         <div class="p-6 border-b border-slate-50 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30"><label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-pen"></i> Message Template</label></div>
+                         <textarea id="broadcast-msg" class="flex-1 p-6 text-sm outline-none resize-none text-slate-600 dark:text-slate-300 bg-transparent leading-relaxed placeholder:text-slate-300 dark:placeholder:text-slate-600" placeholder="Hello [Name], we saw your store at [Address]..."></textarea>
+                         <div class="p-6 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-50 dark:border-slate-700">
+                             <div class="flex gap-2 mb-4">
+                                 <span class="text-[10px] px-2 py-1 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded border border-indigo-100 dark:border-indigo-800 font-mono cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-800 transition" onclick="insertTag('[Name]')">[Name]</span>
+                                 <span class="text-[10px] px-2 py-1 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 rounded border border-emerald-100 dark:border-emerald-800 font-mono cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-800 transition" onclick="insertTag('[Address]')">[Address]</span>
+                                 <span class="text-[10px] px-2 py-1 bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 rounded border border-slate-200 dark:border-slate-700 font-mono cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800" onclick="insertTag('[enter]')">[enter]</span>
+                             </div>
+                             <button onclick="kirimBroadcast()" id="btn-broadcast" disabled class="w-full bg-slate-200 dark:bg-slate-900 text-slate-400 dark:text-slate-600 font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 cursor-not-allowed"><span>Send Broadcast</span></button>
+                         </div>
+                    </div>
+                    <!-- PERBAIKAN: dark:bg-slate-800 -->
+                    <div class="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden slide-up" style="animation-delay: 0.1s;">
+                         <div class="p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
+                            <div class="flex items-center gap-2"><div class="w-2 h-2 bg-blue-500 rounded-full"></div><span class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Queue List</span></div>
+                            <button onclick="hapusSemuaData()" class="text-xs text-red-500 hover:text-red-600 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition">Clear All</button>
+                         </div>
+                         <div id="broadcast-list" class="flex-1 overflow-y-auto p-2 space-y-1 dark:bg-slate-800/50"></div>
+                    </div>
+                </div>
+
+                <!-- View: Custom -->
+                <div id="view-custom" class="hidden h-full flex flex-col p-8 gap-6 fade-in relative overflow-hidden">
+                    <div class="flex gap-4 items-center bg-white dark:bg-slate-800 p-2 pl-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 slide-up shrink-0">
+                        <i class="fa-solid fa-search text-slate-400"></i>
+                        <input type="text" id="search-custom" onkeyup="filterCustomCards()" class="flex-1 bg-transparent text-sm outline-none text-slate-700 dark:text-slate-200 py-2" placeholder="Search entity name...">
+                        <button onclick="kirimCustomReady()" id="btn-custom" disabled class="px-8 py-3 bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 font-bold rounded-xl text-sm transition cursor-not-allowed">Send Messages</button>
+                    </div>
+                    <!-- Cards are generated in script.js, ensure script.js also uses dark:bg-slate-800 -->
+                    <div id="custom-grid" class="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-12 pr-2"></div>
+                </div>
+            </div>
+            
+            <!-- Log Panel -->
+            <div id="log-panel" class="absolute bottom-6 right-8 w-96 max-h-56 glass-overlay bg-slate-900/90 text-emerald-400 p-4 rounded-2xl text-[10px] font-mono shadow-2xl overflow-y-auto hidden border border-slate-700 z-40 transition-all backdrop-blur-md"></div>
+        </div>
+    </div>
+
+    <!-- LINK KE JS EKSTERNAL -->
+    <script src="/js/script.js"></script>
+    
+    <!-- Theme Toggle Implementation Script -->
+    <script>
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
+        // Toggle Icons based on current state
+        if (document.documentElement.classList.contains('dark')) {
+            themeToggleLightIcon.classList.remove('hidden');
+        } else {
+            themeToggleDarkIcon.classList.remove('hidden');
+        }
+
+        const themeToggleBtn = document.getElementById('theme-toggle');
+
+        themeToggleBtn.addEventListener('click', function() {
+            // Toggle icons
+            themeToggleDarkIcon.classList.toggle('hidden');
+            themeToggleLightIcon.classList.toggle('hidden');
+
+            // If is dark mode
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
             } else {
-                btnBroad.disabled = true;
-                btnBroad.className = "w-full bg-slate-200 text-slate-400 font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 cursor-not-allowed";
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
             }
-
-            // Custom State
-            const readyCount = rawData.filter(x => x.pesanKhusus && x.pesanKhusus.trim()).length;
-            if(readyCount > 0) {
-                btnCust.disabled = false;
-                btnCust.innerHTML = `<i class="fa-solid fa-paper-plane mr-2"></i> Send ${readyCount} Messages`;
-                btnCust.className = "px-8 py-3 bg-emerald-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-600 transition transform active:scale-[0.98]";
-            } else {
-                btnCust.disabled = true;
-                btnCust.innerHTML = "Fill Message First";
-                btnCust.className = "px-8 py-3 bg-slate-100 text-slate-400 font-bold rounded-xl text-sm transition cursor-not-allowed";
-            }
-        }
-
-        function disableButtons() {
-            const btnBroad = document.getElementById('btn-broadcast');
-            const btnCust = document.getElementById('btn-custom');
-            btnBroad.disabled = true;
-            btnBroad.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Sending...';
-            btnCust.disabled = true;
-            btnCust.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
-        }
-
-        function enableButtons() {
-            checkButtonState();
-            document.getElementById('btn-broadcast').innerHTML = '<span>Send Broadcast</span>';
-        }
-
-        // --- NAVIGATION & UI HELPERS (Standard) ---
-        function switchMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                b.className = "nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5";
-            });
-            document.getElementById(`nav-${mode}`).className = "nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition text-sm font-medium bg-indigo-600 text-white shadow-lg shadow-indigo-500/30";
-            document.getElementById('view-broadcast').classList.add('hidden');
-            document.getElementById('view-custom').classList.add('hidden');
-            if(rawData.length > 0) {
-                document.getElementById('empty-state').classList.add('hidden');
-                document.getElementById(`view-${mode}`).classList.remove('hidden');
-            } else {
-                document.getElementById('empty-state').classList.remove('hidden');
-            }
-            document.getElementById('page-title').innerText = mode === 'broadcast' ? 'Bulk Broadcast' : 'Personal Chat';
-            if(mode === 'broadcast') renderBroadcastList();
-            if(mode === 'custom') renderCustomGrid();
-        }
+        });
     </script>
 </body>
 </html>
