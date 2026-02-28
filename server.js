@@ -47,6 +47,11 @@ function initializeClient() {
             clientId: SESSION_ID,
             dataPath: './.wwebjs_auth' // Pastikan path eksplisit
         }),
+        // --- FIX STUCK LOGIN: Tambahkan Remote Cache versi WA ---
+        webVersionCache: {
+            type: 'remote',
+            remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+        },
         puppeteer: { 
             headless: true,
             // ARGUMEN WAJIB UNTUK DEPLOY DI RENDER/HEROKU/LINUX
@@ -61,10 +66,12 @@ function initializeClient() {
                 // --- PENGHEMAT MEMORI UNTUK RENDER (MENCEGAH STUCK LOGGING IN) ---
                 '--disable-extensions',
                 '--disable-software-rasterizer',
-                '--js-flags="--max-old-space-size=400"' // Membatasi RAM V8 Engine maks ~400MB
+                '--js-flags="--max-old-space-size=512"' // Ditingkatkan ke 512MB
             ],
             // Jika Render lambat menjalankan Chromium, tambahkan timeout
             handleSIGINT: false,
+            timeout: 120000, // Timeout loading page ditambah jadi 2 Menit
+            protocolTimeout: 300000 // Timeout sinkronisasi WA ditambah jadi 5 Menit
         }
     });
 
@@ -84,6 +91,13 @@ function initializeClient() {
             // Log ke semua user (bahkan yang belum auth app) untuk debug awal jika perlu
             io.emit('log', 'System: QR Code siap di-scan.');
         });
+    });
+
+    // --- FIX STUCK LOGIN: Pantau Progress Sinkronisasi Data ---
+    client.on('loading_screen', (percent, message) => {
+        console.log(`System: WA Loading ${percent}% - ${message}`);
+        emitToAuthenticated('log', `⏳ Sinkronisasi Data WA: ${percent}%`);
+        io.emit('auth_progress', { percent, message });
     });
 
     client.on('ready', () => {
