@@ -251,4 +251,4 @@ scheduleMidnightReset();
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 ${APP_NAME} berjalan di port ${PORT}`);
-});
+}); //git commit
