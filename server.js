@@ -57,11 +57,6 @@ function initializeClient() {
             clientId: SESSION_ID,
             dataPath: './.wwebjs_auth' // Pastikan path eksplisit
         }),
-        // --- FIX STUCK LOGIN: Tambahkan Remote Cache versi WA ---
-        webVersionCache: {
-            type: 'remote',
-            remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-        },
         puppeteer: { 
             headless: true,
             // ARGUMEN WAJIB UNTUK DEPLOY DI RENDER/HEROKU/LINUX (EXTREME RAM SAVING)
@@ -73,19 +68,10 @@ function initializeClient() {
                 '--no-first-run', 
                 '--no-zygote',
                 '--disable-gpu',
-                '--disable-extensions',
+                '--disable-features=site-per-process', // Mengurangi memori dengan drastis di RAM kecil
                 '--disable-software-rasterizer',
-                '--disable-background-networking', // Matikan background network chrome
-                '--disable-default-apps',
-                '--disable-sync',
-                '--disable-translate',
-                '--hide-scrollbars',
-                '--metrics-recording-only',
                 '--mute-audio',
-                '--no-default-browser-check',
-                '--safebrowsing-disable-auto-update',
-                // --- PENGHEMAT MEMORI UNTUK RENDER ---
-                '--js-flags="--max-old-space-size=256"' // Diturunkan ke 256MB agar sisa RAM bisa dipakai Node.js
+                '--disable-extensions'
             ],
             handleSIGINT: false,
             timeout: 120000, // Timeout loading page ditambah jadi 2 Menit
@@ -182,8 +168,6 @@ async function resetClient(triggerUser = null, deleteSession = false) {
         isResetting = false; 
     }
 }
-
-initializeClient();
 
 // --- SOCKET.IO LOGIC ---
 io.on('connection', (socket) => {
@@ -290,4 +274,9 @@ scheduleMidnightReset();
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 ${APP_NAME} berjalan di port ${PORT}`);
+    
+    // Tunda jalannya Chromium selama 2 detik agar Render mengenali port sudah terbuka
+    setTimeout(() => {
+        initializeClient();
+    }, 2000);
 });
