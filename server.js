@@ -219,11 +219,23 @@ io.on('connection', (socket) => {
 
             try {
                 if (client) {
-                    await client.sendMessage(chatId, msg);
-                    io.fetchSockets().then(s => s.forEach(so => { if(so.data.authenticated) so.emit('sent_success', { id: t.id }); }));
-                    emitLog(`✅ Terkirim ke: ${t.nama}`);
+                    // Cek terlebih dahulu apakah nomor tersebut terdaftar di WhatsApp
+                    const isRegistered = await client.isRegisteredUser(chatId);
+                    
+                    if (isRegistered) {
+                        await client.sendMessage(chatId, msg);
+                        io.fetchSockets().then(s => s.forEach(so => { if(so.data.authenticated) so.emit('sent_success', { id: t.id }); }));
+                        emitLog(`✅ Terkirim ke: ${t.nama}`);
+                    } else {
+                        // Jika nomor tidak terdaftar, lewati pengiriman & kirim sinyal gagal ke Frontend
+                        emitLog(`❌ Gagal ke ${t.nama}: Nomor tidak terdaftar di WA`);
+                        io.fetchSockets().then(s => s.forEach(so => { if(so.data.authenticated) so.emit('sent_failed', { id: t.id, reason: 'Not Registered' }); }));
+                    }
                 }
-            } catch (err) { emitLog(`❌ Gagal ke ${t.nama}: ${err.message}`); }
+            } catch (err) { 
+                emitLog(`❌ Gagal ke ${t.nama}: ${err.message}`); 
+                io.fetchSockets().then(s => s.forEach(so => { if(so.data.authenticated) so.emit('sent_failed', { id: t.id, reason: 'Error' }); }));
+            }
 
             if (i < targets.length - 1) await new Promise(r => setTimeout(r, Math.floor(Math.random() * 4000) + 3000));
         }
@@ -251,4 +263,4 @@ scheduleMidnightReset();
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 ${APP_NAME} berjalan di port ${PORT}`);
-}); //git commit
+});

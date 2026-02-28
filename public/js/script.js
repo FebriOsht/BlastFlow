@@ -3,6 +3,7 @@ let rawData = [];
 let currentMode = 'broadcast'; 
 let isConnected = false;
 let selectedMode = null; // 'individual' or 'team'
+let isLogPanelOpen = true; // Status toggle log panel
 
 // --- TOAST NOTIFICATION ---
 const Toast = Swal.mixin({
@@ -21,13 +22,11 @@ const Toast = Swal.mixin({
 // 0. INITIAL CHECK (STARTUP)
 // ==========================================
 
-// Saat load, cek ke server: Sudah ada sesi belum hari ini?
 socket.on('connect', () => {
     socket.emit('check_session_status');
 });
 
 socket.on('session_status', (data) => {
-    // Sembunyikan semua layar dulu untuk reset tampilan
     document.getElementById('mode-selection-screen').classList.add('hidden');
     document.getElementById('setup-screen').classList.add('hidden');
     document.getElementById('login-form-screen').classList.add('hidden');
@@ -35,11 +34,9 @@ socket.on('session_status', (data) => {
     document.getElementById('login-screen').classList.add('hidden');
     
     if (data.isInitialized) {
-        // Jika sudah ada sesi -> Tampilkan FORM LOGIN
         document.getElementById('login-mode-badge').innerText = `Mode: ${data.mode === 'individual' ? 'Privacy (Individual)' : 'Team Collaboration'}`;
         document.getElementById('login-form-screen').classList.remove('hidden');
     } else {
-        // Jika belum ada sesi -> Tampilkan PILIHAN MODE
         document.getElementById('mode-selection-screen').classList.remove('hidden');
     }
 });
@@ -50,11 +47,9 @@ socket.on('session_status', (data) => {
 
 function selectMode(mode) {
     selectedMode = mode;
-    // Sembunyikan Pilihan, Tampilkan Form Setup Password
     document.getElementById('mode-selection-screen').classList.add('hidden');
     document.getElementById('setup-screen').classList.remove('hidden');
     
-    // Update teks sesuai mode
     const title = mode === 'individual' ? 'Privacy Setup' : 'Create Team Session';
     const desc = mode === 'individual' ? 'Set a password to lock your private session.' : 'Set a team password. Share it with your team (max 3 users).';
     document.getElementById('setup-title').innerText = title;
@@ -73,7 +68,6 @@ function submitSetup(e) {
     
     if(!user || !pass) return;
 
-    // Kirim permintaan buat sesi baru
     socket.emit('create_session', {
         mode: selectedMode,
         password: pass,
@@ -90,7 +84,6 @@ function submitLogin(e) {
     const user = document.getElementById('login-username').value;
     const pass = document.getElementById('login-pass').value;
     
-    // Kirim permintaan join sesi
     socket.emit('login_session', {
         password: pass,
         username: user
@@ -103,16 +96,13 @@ function submitLogin(e) {
 
 socket.on('login_result', (data) => {
     if(data.success) {
-        // Sukses Login!
         document.getElementById('display-username').innerText = data.username;
         document.getElementById('display-mode').innerText = data.mode === 'individual' ? 'Private Mode' : 'Team Mode';
         
-        // Sembunyikan semua layar auth
         document.getElementById('setup-screen').classList.add('hidden');
         document.getElementById('login-form-screen').classList.add('hidden');
         document.getElementById('mode-selection-screen').classList.add('hidden');
         
-        // Masuk ke Main App
         document.getElementById('main-app').classList.remove('hidden');
         document.getElementById('main-app').classList.add('flex');
         
@@ -124,22 +114,17 @@ socket.on('login_result', (data) => {
             showConfirmButton: false
         });
     } else {
-        // Gagal Login
         Swal.fire('Login Failed', data.message, 'error');
-        // Reset password field
         const loginPass = document.getElementById('login-pass');
         if(loginPass) loginPass.value = '';
     }
 });
 
-// Jika sesi baru saja dibuat oleh orang lain (saat kita masih di layar pilihan)
 socket.on('session_created', (data) => {
-    // Paksa cek ulang status agar pindah ke layar login
     socket.emit('check_session_status');
     Swal.fire('Session Created', `A ${data.mode} session has just been started. Please login.`, 'info');
 });
 
-// Jika server di-reset total
 socket.on('force_reload', () => {
     Swal.fire({
         title: 'System Reset',
@@ -181,7 +166,6 @@ function showQrModal() {
         Swal.fire('Already Connected', 'You are logged in.', 'info');
         return;
     }
-    // Reset UI Modal ke posisi awal (tampilkan QR/Loading, sembunyikan Success)
     document.getElementById('qr-content').classList.remove('hidden');
     document.getElementById('qr-success').classList.add('hidden');
     document.getElementById('qr-title').innerText = "Link Device";
@@ -189,7 +173,6 @@ function showQrModal() {
     
     document.getElementById('qr-modal').classList.remove('hidden');
     
-    // Tampilkan loader jika gambar QR belum ada
     const qrImg = document.getElementById('qr-image');
     if(!qrImg.getAttribute('src')) {
         document.getElementById('qr-loading').classList.remove('hidden');
@@ -208,7 +191,6 @@ socket.on('status', (status) => {
     const loginScreen = document.getElementById('login-screen');
     const qrModal = document.getElementById('qr-modal');
 
-    // A. STATUS: READY (WA Terhubung)
     if(status === 'ready') {
         isConnected = true;
         loginScreen.classList.add('hidden');
@@ -221,7 +203,6 @@ socket.on('status', (status) => {
         }
         Toast.fire({ icon: 'success', title: 'WhatsApp Connected!' });
     } 
-    // B. STATUS: AUTHENTICATED (Scan Sukses)
     else if (status === 'authenticated') {
         qrModal.classList.remove('hidden');
         document.getElementById('qr-content').classList.add('hidden');
@@ -230,15 +211,12 @@ socket.on('status', (status) => {
         document.getElementById('qr-title').innerText = "Logging In...";
         document.getElementById('qr-subtitle').innerText = "Please wait a moment";
     }
-    // C. STATUS: SCAN (Belum terhubung)
     else if (status === 'scan') {
         isConnected = false;
-        // Hanya tampilkan layar lock WA jika user sudah masuk dashboard (melewati login app)
         if(!document.getElementById('main-app').classList.contains('hidden')){
              loginScreen.classList.remove('hidden');
         }
         
-        // Reset modal
         document.getElementById('qr-content').classList.remove('hidden');
         document.getElementById('qr-success').classList.add('hidden');
         document.getElementById('qr-title').innerText = "Link Device";
@@ -250,21 +228,25 @@ socket.on('status', (status) => {
             txt.className = "text-[10px] font-mono text-yellow-500 uppercase tracking-widest font-bold";
         }
     } 
-    // D. STATUS: RESET (Logout Total)
     else if (status === 'reset') {
         const logoutOverlay = document.getElementById('logout-overlay');
         if(logoutOverlay) logoutOverlay.classList.remove('hidden');
 
         isConnected = false;
         
-        // Bersihkan data lokal & UI
         rawData = [];
         document.getElementById('total-data').innerText = 0;
         const qrImg = document.getElementById('qr-image');
         if(qrImg) qrImg.removeAttribute('src'); 
         
         if(qrModal) qrModal.classList.add('hidden');
+        
+        // Bersihkan dan sembunyikan log panel secara penuh
         document.getElementById('log-panel').innerHTML = ''; 
+        document.getElementById('log-panel-container').classList.add('hidden');
+        document.getElementById('log-panel-container').classList.remove('flex');
+        document.getElementById('log-toggle-btn').classList.add('hidden');
+
         document.getElementById('broadcast-list').innerHTML = '';
         document.getElementById('custom-grid').innerHTML = '';
         
@@ -274,10 +256,8 @@ socket.on('status', (status) => {
             txt.className = "text-[10px] font-mono text-red-500 uppercase tracking-widest font-bold";
         }
 
-        // Delay sebelum kembali ke layar lock WA
         setTimeout(() => {
             if(logoutOverlay) logoutOverlay.classList.add('hidden');
-            // Cek apakah user masih di dashboard
             if(!document.getElementById('main-app').classList.contains('hidden')) {
                 loginScreen.classList.remove('hidden');
             }
@@ -293,14 +273,52 @@ socket.on('qr', (url) => {
     if(qrLoad) qrLoad.classList.add('hidden');
 });
 
+// LOGIKA TOGGLE & UPDATE LOG PANEL
 socket.on('log', (msg) => {
+    const container = document.getElementById('log-panel-container');
+    const toggleBtn = document.getElementById('log-toggle-btn');
     const panel = document.getElementById('log-panel');
-    panel.classList.remove('hidden');
+    
+    // Tampilkan container/toggle jika keduanya masih tersembunyi
+    if(container.classList.contains('hidden') && toggleBtn.classList.contains('hidden')) {
+        if(isLogPanelOpen) {
+            container.classList.remove('hidden');
+            container.classList.add('flex');
+        } else {
+            toggleBtn.classList.remove('hidden');
+        }
+    }
+    
+    // Cetak log ke dalam panel
     const d = document.createElement('div');
     d.innerHTML = `<span class="opacity-50 mr-2">[${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]</span>${msg}`;
     panel.appendChild(d);
     panel.scrollTop = panel.scrollHeight;
+
+    // Tambahkan animasi berkedip pada tombol jika panel sedang disembunyikan
+    if(!isLogPanelOpen) {
+        toggleBtn.classList.add('animate-pulse', 'text-white');
+        setTimeout(() => toggleBtn.classList.remove('animate-pulse', 'text-white'), 1000);
+    }
 });
+
+function toggleLogPanel() {
+    isLogPanelOpen = !isLogPanelOpen;
+    const container = document.getElementById('log-panel-container');
+    const toggleBtn = document.getElementById('log-toggle-btn');
+    
+    if(isLogPanelOpen) {
+        // Tampilkan Box Log
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+        toggleBtn.classList.add('hidden');
+    } else {
+        // Sembunyikan Box Log dan tampilkan Tombol melayang
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+        toggleBtn.classList.remove('hidden');
+    }
+}
 
 // ==========================================
 // 6. BROADCAST LOGIC
@@ -320,6 +338,33 @@ socket.on('sent_success', (data) => {
     } else {
         const el = document.getElementById(`card-${data.id}`);
         if(el) { el.classList.add('slide-out'); setTimeout(() => el.remove(), 500); }
+    }
+});
+
+socket.on('sent_failed', (data) => {
+    if(currentMode === 'broadcast') {
+        const badge = document.getElementById(`badge-${data.id}`);
+        if(badge) {
+            badge.className = "text-[10px] font-bold text-white bg-red-500 px-2 py-1 rounded shadow-sm";
+            badge.innerText = data.reason === 'Not Registered' ? 'UNREGISTERED WA' : 'FAILED';
+        }
+    } else {
+        const card = document.getElementById(`card-${data.id}`);
+        if(card) {
+            // Ubah gaya kartu menjadi peringatan (merah)
+            card.classList.remove('border-indigo-400', 'ring-1', 'ring-indigo-400', 'border-slate-100');
+            card.classList.add('border-red-400', 'ring-2', 'ring-red-400', 'bg-red-50');
+            
+            // Tambahkan label UNREGISTERED WA jika belum ada
+            if(!document.getElementById(`fail-badge-${data.id}`)) {
+                const headerInfo = card.querySelector('.flex.justify-between.mb-4');
+                const badge = document.createElement('div');
+                badge.id = `fail-badge-${data.id}`;
+                badge.className = "text-[9px] font-bold text-white bg-red-500 px-2 py-1 rounded shadow-sm mb-3 w-fit tracking-wider";
+                badge.innerText = data.reason === 'Not Registered' ? 'UNREGISTERED WA' : 'FAILED';
+                headerInfo.parentNode.insertBefore(badge, headerInfo.nextSibling);
+            }
+        }
     }
 });
 
@@ -400,27 +445,75 @@ if(fileInput) {
 }
 
 function parsingExcel(rows) {
-    let idxNama = -1, idxHP = -1;
-    for(let r=0; r<Math.min(rows.length, 5); r++){
+    let idxNama = -1, idxHP = -1, idxPesan = -1;
+    
+    // 1. Cek Header (Baris 0 sampai 2) untuk cari kata kunci (termasuk "massage")
+    const keywords = ['pesan', 'message', 'massage', 'msg', 'teks', 'text', 'chat', 'keterangan'];
+    for (let r = 0; r < Math.min(rows.length, 3); r++) {
         const row = rows[r];
-        for(let c=0; c<row.length; c++){
-            const cell = String(row[c]);
-            const clean = cell.replace(/\D/g,'');
-            if(idxHP === -1 && clean.length > 8 && (clean.startsWith('62') || clean.startsWith('08'))) idxHP = c;
-            if(idxNama === -1 && cell.length > 3 && isNaN(cell)) idxNama = c;
+        for (let c = 0; c < row.length; c++) {
+            const cellText = String(row[c] || "").toLowerCase().trim();
+            if (keywords.some(kw => cellText.includes(kw))) {
+                idxPesan = c;
+                break;
+            }
+        }
+        if (idxPesan !== -1) break; // Berhenti jika sudah ketemu
+    }
+
+    // 2. Auto deteksi kolom Nama dan HP (Dan pesan jika header tidak ditemukan)
+    // Ambil sampel beberapa baris awal data
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+        const row = rows[r];
+        for (let c = 0; c < row.length; c++) {
+            const cell = String(row[c] || "");
+            const cleanNum = cell.replace(/\D/g, '');
+            
+            // Cari Nomor HP
+            if (idxHP === -1 && cleanNum.length >= 9 && (cleanNum.startsWith('62') || cleanNum.startsWith('08') || cleanNum.startsWith('8'))) {
+                idxHP = c;
+            }
+            
+            // Cari Nama (teks pendek, bukan angka murni, bukan kolom pesan)
+            if (idxNama === -1 && cell.length > 2 && cell.length <= 30 && isNaN(cell) && c !== idxPesan && c !== idxHP) {
+                idxNama = c;
+            }
+
+            // Fallback Cari Pesan: Jika belum ketemu kolomnya, anggap teks yang panjang (>40 karakter) otomatis sebagai pesan
+            if (idxPesan === -1 && cell.length > 40 && c !== idxNama && c !== idxHP) {
+                idxPesan = c;
+            }
         }
     }
-    if(idxHP === -1) idxHP = 1; if(idxNama === -1) idxNama = 0;
+
+    // Default fallback jika format sangat berantakan
+    if (idxHP === -1) idxHP = 1; 
+    if (idxNama === -1) idxNama = 0;
 
     let count = 0;
     rows.forEach((row, i) => {
-        if(i===0 && String(row[idxHP]).length < 5) return;
-        let nama = row[idxNama] ? String(row[idxNama]) : "Partner";
-        let hp = row[idxHP] ? String(row[idxHP]).replace(/\D/g,'') : "";
-        if(hp.startsWith('0')) hp = '62' + hp.slice(1);
+        let cellHP = String(row[idxHP] || "");
+        let cleanHP = cellHP.replace(/\D/g, '');
+        
+        // Lewati baris header atau baris kosong yang tidak punya no HP valid
+        if (i < 3 && cleanHP.length < 8) return; 
+        if (cleanHP.length < 8) return;
 
-        if(hp.length > 9) {
-            rawData.push({ id: Date.now() + Math.random().toString(36).substr(2, 9), nama: nama, nomor: hp, pesanKhusus: "" });
+        let nama = row[idxNama] ? String(row[idxNama]) : "Partner";
+        let hp = cleanHP;
+        let pesan = (idxPesan !== -1 && row[idxPesan]) ? String(row[idxPesan]) : "";
+        
+        // Standarisasi awalan nomor HP
+        if (hp.startsWith('0')) hp = '62' + hp.slice(1);
+        else if (hp.startsWith('8')) hp = '62' + hp;
+
+        if (hp.length > 9) {
+            rawData.push({ 
+                id: Date.now() + Math.random().toString(36).substr(2, 9), 
+                nama: nama, 
+                nomor: hp, 
+                pesanKhusus: pesan // Pesan otomatis masuk ke kartu
+            });
             count++;
         }
     });
@@ -447,7 +540,7 @@ function renderBroadcastList() {
                     <div class="text-[10px] text-slate-400 font-mono tracking-wide">${item.nomor}</div>
                 </div>
             </div>
-            <div class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded border border-slate-200">WAITING</div>
+            <div id="badge-${item.id}" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded border border-slate-200">WAITING</div>
         `;
         list.appendChild(div);
     });
@@ -460,7 +553,16 @@ function renderCustomGrid() {
     rawData.forEach(item => {
         const div = document.createElement('div');
         div.id = `card-${item.id}`;
-        div.className = "custom-card bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl hover:border-indigo-200 transition relative group scale-in";
+        
+        // Cek apakah pesan khusus sudah ada nilainya dari excel (untuk styling warna)
+        let borderClass = 'border-slate-100';
+        let ringClass = '';
+        if(item.pesanKhusus && item.pesanKhusus.trim() !== '') {
+            borderClass = 'border-indigo-400';
+            ringClass = 'ring-1 ring-indigo-400';
+        }
+
+        div.className = `custom-card bg-white p-5 rounded-2xl shadow-sm border ${borderClass} ${ringClass} hover:shadow-xl hover:border-indigo-200 transition relative group scale-in`;
         div.setAttribute('data-nama', item.nama.toLowerCase());
         div.setAttribute('data-hp', item.nomor);
         
