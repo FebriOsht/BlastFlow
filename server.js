@@ -33,6 +33,16 @@ let client = null;
 let isResetting = false; 
 
 /**
+ * Menangkap Error Global agar server tidak mati diam-diam (502 Error Debugging)
+ */
+process.on('uncaughtException', (err) => {
+    console.error('CRITICAL ERROR (Uncaught Exception):', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('CRITICAL ERROR (Unhandled Rejection):', reason);
+});
+
+/**
  * Inisialisasi Engine WhatsApp Web dengan Optimasi Render/Cloud
  */
 function initializeClient() {
@@ -54,7 +64,7 @@ function initializeClient() {
         },
         puppeteer: { 
             headless: true,
-            // ARGUMEN WAJIB UNTUK DEPLOY DI RENDER/HEROKU/LINUX
+            // ARGUMEN WAJIB UNTUK DEPLOY DI RENDER/HEROKU/LINUX (EXTREME RAM SAVING)
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox', 
@@ -63,12 +73,20 @@ function initializeClient() {
                 '--no-first-run', 
                 '--no-zygote',
                 '--disable-gpu',
-                // --- PENGHEMAT MEMORI UNTUK RENDER (MENCEGAH STUCK LOGGING IN) ---
                 '--disable-extensions',
                 '--disable-software-rasterizer',
-                '--js-flags="--max-old-space-size=512"' // Ditingkatkan ke 512MB
+                '--disable-background-networking', // Matikan background network chrome
+                '--disable-default-apps',
+                '--disable-sync',
+                '--disable-translate',
+                '--hide-scrollbars',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--no-default-browser-check',
+                '--safebrowsing-disable-auto-update',
+                // --- PENGHEMAT MEMORI UNTUK RENDER ---
+                '--js-flags="--max-old-space-size=256"' // Diturunkan ke 256MB agar sisa RAM bisa dipakai Node.js
             ],
-            // Jika Render lambat menjalankan Chromium, tambahkan timeout
             handleSIGINT: false,
             timeout: 120000, // Timeout loading page ditambah jadi 2 Menit
             protocolTimeout: 300000 // Timeout sinkronisasi WA ditambah jadi 5 Menit
@@ -88,7 +106,6 @@ function initializeClient() {
         qrcode.toDataURL(qr, (err, url) => {
             emitToAuthenticated('qr', url);
             emitToAuthenticated('status', 'scan');
-            // Log ke semua user (bahkan yang belum auth app) untuk debug awal jika perlu
             io.emit('log', 'System: QR Code siap di-scan.');
         });
     });
@@ -114,7 +131,7 @@ function initializeClient() {
     client.on('auth_failure', (msg) => {
         console.error("System: Auth Failure:", msg);
         emitToAuthenticated('log', '❌ Sesi gagal. Menghapus cache dan mencoba lagi...');
-        resetClient(null, true); // Hapus sesi jika gagal total
+        resetClient(null, true); 
     });
 
     client.on('disconnected', (reason) => {
@@ -125,7 +142,6 @@ function initializeClient() {
 
     client.initialize().catch(err => {
         console.error("System: Gagal Initialize:", err.message);
-        // Jangan resetClient di sini agar tidak looping reload
     });
 }
 
@@ -233,7 +249,6 @@ io.on('connection', (socket) => {
 
             try {
                 if (client) {
-                    // Cek terlebih dahulu apakah nomor tersebut terdaftar di WhatsApp
                     const isRegistered = await client.isRegisteredUser(chatId);
                     
                     if (isRegistered) {
@@ -241,7 +256,6 @@ io.on('connection', (socket) => {
                         io.fetchSockets().then(s => s.forEach(so => { if(so.data.authenticated) so.emit('sent_success', { id: t.id }); }));
                         emitLog(`✅ Terkirim ke: ${t.nama}`);
                     } else {
-                        // Jika nomor tidak terdaftar, lewati pengiriman & kirim sinyal gagal ke Frontend
                         emitLog(`❌ Gagal ke ${t.nama}: Nomor tidak terdaftar di WA`);
                         io.fetchSockets().then(s => s.forEach(so => { if(so.data.authenticated) so.emit('sent_failed', { id: t.id, reason: 'Not Registered' }); }));
                     }
@@ -273,7 +287,6 @@ function scheduleMidnightReset() {
 }
 scheduleMidnightReset();
 
-// --- PERBAIKAN PORT UNTUK RENDER ---
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 ${APP_NAME} berjalan di port ${PORT}`);
