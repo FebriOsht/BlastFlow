@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*", // Mengizinkan akses dari domain mana pun (penting untuk cloud)
+        origin: "*", 
         methods: ["GET", "POST"]
     }
 });
@@ -19,6 +19,10 @@ app.use(express.static('public'));
 
 // --- CONFIGURATION ---
 const APP_NAME = "BlastFlow";
+
+// [BLUEPRINT UNTUK SAAS/DIJUAL]
+// Jika Anda menjadikan ini SaaS multi-user, SESSION_ID tidak boleh statis.
+// Harus dibuat dinamis berdasarkan ID User di Database (misal: "session_" + userId).
 const SESSION_ID = "blastflow_session";
 
 // --- STATE MANAGEMENT SISTEM ---
@@ -33,7 +37,7 @@ let client = null;
 let isResetting = false; 
 
 /**
- * Menangkap Error Global agar server tidak mati diam-diam (502 Error Debugging)
+ * Menangkap Error Global agar server tidak mati diam-diam
  */
 process.on('uncaughtException', (err) => {
     console.error('CRITICAL ERROR (Uncaught Exception):', err);
@@ -43,39 +47,56 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 /**
- * Inisialisasi Engine WhatsApp Web dengan Optimasi Render/Cloud
+ * Inisialisasi Engine WhatsApp Web
+ * [BLUEPRINT UNTUK SAAS] Ubah fungsi ini menerima parameter `userId` untuk multi-device
  */
 function initializeClient() {
-    console.log("System: Memulai Inisialisasi WhatsApp Engine di Cloud...");
+    console.log("System: Memulai Inisialisasi WhatsApp Engine...");
     
     if (client) {
         try { client.removeAllListeners(); } catch (e) {}
     }
 
+    // KONFIGURASI EKSTENSI CHROME (Diatur via Environment Variables)
+    // Jangan aktifkan USE_EXTENSIONS="true" jika masih pakai Render Gratisan (512MB RAM)!
+    const useExtensions = process.env.USE_EXTENSIONS === "true";
+    const extensionPath = process.env.EXTENSION_PATH || ""; // Contoh: "/path/to/extension"
+
+    let puppeteerArgs = [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas', 
+        '--no-first-run', 
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-features=site-per-process', 
+        '--disable-software-rasterizer',
+        '--mute-audio'
+    ];
+
+    // Jika fitur extensions dimatikan (mode hemat RAM - default cloud)
+    if (!useExtensions) {
+        puppeteerArgs.push('--disable-extensions');
+    } else if (extensionPath) {
+        // Jika fitur extensions dinyalakan dan path tersedia (untuk server VPS/Desktop)
+        puppeteerArgs.push(`--disable-extensions-except=${extensionPath}`);
+        puppeteerArgs.push(`--load-extension=${extensionPath}`);
+        console.log(`System: 🧩 Mode Extensions Aktif memuat dari: ${extensionPath}`);
+    }
+
     client = new Client({
         authStrategy: new LocalAuth({ 
             clientId: SESSION_ID,
-            dataPath: './.wwebjs_auth' // Pastikan path eksplisit
+            dataPath: './.wwebjs_auth' 
         }),
         puppeteer: { 
-            headless: true,
-            // ARGUMEN WAJIB UNTUK DEPLOY DI RENDER/HEROKU/LINUX (EXTREME RAM SAVING)
-            args: [
-                '--no-sandbox', 
-                '--disable-setuid-sandbox', 
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas', 
-                '--no-first-run', 
-                '--no-zygote',
-                '--disable-gpu',
-                '--disable-features=site-per-process', // Mengurangi memori dengan drastis di RAM kecil
-                '--disable-software-rasterizer',
-                '--mute-audio',
-                '--disable-extensions'
-            ],
+            // Beberapa ekstensi butuh headless: false (atau 'new') agar bisa jalan
+            headless: useExtensions ? 'new' : true,
+            args: puppeteerArgs,
             handleSIGINT: false,
-            timeout: 120000, // Timeout loading page ditambah jadi 2 Menit
-            protocolTimeout: 300000 // Timeout sinkronisasi WA ditambah jadi 5 Menit
+            timeout: 120000, 
+            protocolTimeout: 300000 
         }
     });
 
@@ -96,7 +117,6 @@ function initializeClient() {
         });
     });
 
-    // --- FIX STUCK LOGIN: Pantau Progress Sinkronisasi Data ---
     client.on('loading_screen', (percent, message) => {
         console.log(`System: WA Loading ${percent}% - ${message}`);
         emitToAuthenticated('log', `⏳ Sinkronisasi Data WA: ${percent}%`);
@@ -275,7 +295,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 ${APP_NAME} berjalan di port ${PORT}`);
     
-    // Tunda jalannya Chromium selama 2 detik agar Render mengenali port sudah terbuka
+    // Tunda jalannya Chromium selama 2 detik agar platform cloud mengenali port sudah terbuka
     setTimeout(() => {
         initializeClient();
     }, 2000);
